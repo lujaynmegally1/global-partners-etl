@@ -1,4 +1,4 @@
-# Deployment Test: Feb 18 - v1.1
+# Deployment Test: Feb 19
 import sys
 from awsglue.utils import getResolvedOptions
 from pyspark.context import SparkContext
@@ -62,3 +62,4 @@ df_silver_sales.write.mode("overwrite").partitionBy("order_date").parquet(f"{SIL
 df_date.write.mode("overwrite").parquet(f"{SILVER_PATH}date_dim/")
 
 job.commit()
+
