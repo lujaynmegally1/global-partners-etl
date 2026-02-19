@@ -22,14 +22,14 @@ jobs:
         run: |
           aws s3 sync ./scripts s3://globalpartners-glue-assets/scripts/
 
-      # 2. Update Job 1 (using the hyphenated filename)
+# 2. Update Job 1
       - name: Update Glue Job 1
         run: |
           aws glue update-job --job-name "globalpartners-gluejob-1" --job-update \
-          "Role=globalpartners-gluejob-role,Command={Name=glueetl,ScriptLocation=s3://globalpartners-glue-assets/scripts/glue-job-1.py}"
+          "Role=globalpartners-gluejob-role,GlueVersion=4.0,WorkerType=G.1X,NumberOfWorkers=2,Command={Name=glueetl,ScriptLocation=s3://globalpartners-glue-assets/scripts/glue-job-1.py,PythonVersion=3}"
 
-      # 3. Update Job 2 (using the hyphenated filename)
+      # 3. Update Job 2
       - name: Update Glue Job 2
         run: |
           aws glue update-job --job-name "globalpartners-gluejob-2-gold" --job-update \
-          "Role=globalpartners-gluejob-role,Command={Name=glueetl,ScriptLocation=s3://globalpartners-glue-assets/scripts/glue-job-2.py}"
+          "Role=globalpartners-gluejob-role,GlueVersion=4.0,WorkerType=G.1X,NumberOfWorkers=2,Command={Name=glueetl,ScriptLocation=s3://globalpartners-glue-assets/scripts/glue-job-2.py,PythonVersion=3}"
