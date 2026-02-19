@@ -1,4 +1,4 @@
-# Deployment Test: Feb 18 - v1.0
+# Deployment Test: Feb 18 - v1.1
 import sys
 from awsglue.utils import getResolvedOptions
 from pyspark.context import SparkContext
@@ -11,6 +11,12 @@ args = getResolvedOptions(sys.argv, ['JOB_NAME'])
 sc = SparkContext()
 glueContext = GlueContext(sc)
 spark = glueContext.spark_session
+
+# --- FIX FOR UINT_8 ERROR ---
+# This forces Spark to use a compatible Parquet format for unsigned integers
+spark.conf.set("spark.sql.parquet.writeLegacyFormat", "true")
+# ----------------------------
+
 job = Job(glueContext)
 job.init(args['JOB_NAME'], args)
 
@@ -18,7 +24,7 @@ job.init(args['JOB_NAME'], args)
 BRONZE_PATH = "s3://globalpartners-bronze/dms/dbo/"
 SILVER_PATH = "s3://globalpartners-silver/"
 
-# 1. PROCESS: order_items (Casting User ID, Price, and Dates)
+# 1. PROCESS: order_items
 df_items = (spark.read.parquet(f"{BRONZE_PATH}order_items/")
     .dropDuplicates(["order_id", "lineitem_id"])
     .withColumn("user_id", F.coalesce(F.col("user_id"), F.lit("GUEST")))
@@ -28,7 +34,7 @@ df_items = (spark.read.parquet(f"{BRONZE_PATH}order_items/")
     .withColumn("item_total", F.col("item_price") * F.col("item_quantity"))
 )
 
-# 2. PROCESS: order_item_options (Standardizing Case)
+# 2. PROCESS: order_item_options
 df_options = (spark.read.parquet(f"{BRONZE_PATH}order_item_options/")
     .withColumnRenamed("ORDER_ID", "order_id")
     .withColumnRenamed("LINEITEM_ID", "lineitem_id")
@@ -40,22 +46,18 @@ df_options = (spark.read.parquet(f"{BRONZE_PATH}order_item_options/")
 )
 
 # 3. JOIN: Creating the Master Sales Table
-# We join the raw options so that every row in Silver has the specific option_price
 df_silver_sales = (df_items
     .join(df_options, ["order_id", "lineitem_id"], "left")
     .fillna(0, subset=["option_total", "option_price"])
     .withColumn("total_line_item_revenue", F.col("item_total") + F.col("option_total"))
 )
 
-
-# 4. PROCESS: date_dim (Handling your DD-MM-YYYY format)
+# 4. PROCESS: date_dim
 df_date = (spark.read.parquet(f"{BRONZE_PATH}date_dim/")
     .withColumn("date_key", F.to_date(F.col("date_key"), "dd-MM-yyyy"))
 )
 
 # 5. WRITE & LOG
-print(f"Total processed records for Silver: {df_silver_sales.count()}")
-
 df_silver_sales.write.mode("overwrite").partitionBy("order_date").parquet(f"{SILVER_PATH}sales_fact/")
 df_date.write.mode("overwrite").parquet(f"{SILVER_PATH}date_dim/")
 
