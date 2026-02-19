@@ -1,5 +1,4 @@
 # Deployment Test: Feb 18 - v1.0
-# testing 
 import sys
 from awsglue.utils import getResolvedOptions
 from pyspark.context import SparkContext
